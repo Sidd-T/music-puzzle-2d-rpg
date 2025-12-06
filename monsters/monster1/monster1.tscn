@@ -210,7 +210,7 @@ size = Vector2(16, 16)
 [node name="Enemy1" type="Node2D" node_paths=PackedStringArray("sprite", "ray_cast") groups=["gamepieces"]]
 script = ExtResource("1_df7aa")
 sprite = NodePath("AnimatedSprite2D")
-move_time = null
+move_time = 1.0
 ray_cast = NodePath("RayCast2D")
 metadata/_custom_type_script = "uid://7xsb8hf3704r"
 

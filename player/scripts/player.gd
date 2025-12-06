@@ -1,6 +1,5 @@
 class_name Player extends Gamepiece
 
-#@onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var animationTree = $AnimationTree;
 @onready var animationState = animationTree.get("parameters/playback")
 
@@ -23,3 +22,7 @@ func _process(_delta: float) -> void:
 		step(Vector2.RIGHT)
 	else:
 		animationState.travel("Idle");	
+		
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.is_pressed() and event.button_index == MOUSE_BUTTON_LEFT:
+		travel_astar_path(tile_map_layer.local_to_map(get_global_mouse_position()))
