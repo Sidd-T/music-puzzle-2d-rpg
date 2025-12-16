@@ -1,12 +1,8 @@
-[gd_scene load_steps=91 format=3 uid="uid://0vqjw0ednx2q"]
+[gd_scene load_steps=92 format=3 uid="uid://0vqjw0ednx2q"]
 
 [ext_resource type="Texture2D" uid="uid://bvw6bwph7wr4b" path="res://assets/player/Slime1/With_shadow/Slime1_Idle_with_shadow.png" id="1_3vswi"]
 [ext_resource type="Script" uid="uid://du8g31kfnayoa" path="res://player/scripts/player.gd" id="1_btcbx"]
 [ext_resource type="Texture2D" uid="uid://dc7s1v4c2ofrw" path="res://assets/player/Slime1/With_shadow/Slime1_Walk_with_shadow.png" id="3_3qktu"]
-[ext_resource type="Script" uid="uid://d3eyscu3pvhbc" path="res://common/state_machine.gd" id="4_boad6"]
-[ext_resource type="Script" uid="uid://dy3hgrfp5ey2l" path="res://player/states/idle.gd" id="4_g6k8r"]
-[ext_resource type="Script" uid="uid://bl0ijcgulra7x" path="res://player/states/walking.gd" id="5_boad6"]
-[ext_resource type="Script" uid="uid://dk8iu4t1finsd" path="res://player/states/playing.gd" id="6_rgyib"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_gwnis"]
 atlas = ExtResource("1_3vswi")
@@ -758,6 +754,18 @@ animation = &"walk_right"
 [sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_ugh6c"]
 animation = &"walk_up"
 
+[sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_o3wxl"]
+animation = &"walk_left"
+
+[sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_qmf6q"]
+animation = &"walk_left"
+
+[sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_33o0q"]
+animation = &"walk_right"
+
+[sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_rfsk0"]
+animation = &"walk_right"
+
 [sub_resource type="AnimationNodeBlendSpace2D" id="AnimationNodeBlendSpace2D_ym3cp"]
 blend_point_0/node = SubResource("AnimationNodeAnimation_kjp7y")
 blend_point_0/pos = Vector2(-1, 0)
@@ -767,6 +775,14 @@ blend_point_2/node = SubResource("AnimationNodeAnimation_aw7j2")
 blend_point_2/pos = Vector2(1, 0)
 blend_point_3/node = SubResource("AnimationNodeAnimation_ugh6c")
 blend_point_3/pos = Vector2(0, -1)
+blend_point_4/node = SubResource("AnimationNodeAnimation_o3wxl")
+blend_point_4/pos = Vector2(-1, 1)
+blend_point_5/node = SubResource("AnimationNodeAnimation_qmf6q")
+blend_point_5/pos = Vector2(-1, -1)
+blend_point_6/node = SubResource("AnimationNodeAnimation_33o0q")
+blend_point_6/pos = Vector2(1, 1)
+blend_point_7/node = SubResource("AnimationNodeAnimation_rfsk0")
+blend_point_7/pos = Vector2(1, -1)
 blend_mode = 1
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_kac8u"]
@@ -790,6 +806,9 @@ states/Walk/node = SubResource("AnimationNodeBlendSpace2D_ym3cp")
 states/Walk/position = Vector2(510, 100)
 transitions = ["Start", "Idle", SubResource("AnimationNodeStateMachineTransition_kac8u"), "Idle", "Walk", SubResource("AnimationNodeStateMachineTransition_1hddd"), "Walk", "Idle", SubResource("AnimationNodeStateMachineTransition_1crfn"), "Idle", "End", SubResource("AnimationNodeStateMachineTransition_i44jw"), "Walk", "End", SubResource("AnimationNodeStateMachineTransition_j16lc")]
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_g1dw6"]
+size = Vector2(16, 16)
+
 [node name="Player" type="Node2D" node_paths=PackedStringArray("sprite") groups=["gamepieces"]]
 script = ExtResource("1_btcbx")
 sprite = NodePath("AnimatedSprite2D")
@@ -809,17 +828,9 @@ libraries = {
 tree_root = SubResource("AnimationNodeStateMachine_hq2ud")
 anim_player = NodePath("../AnimationPlayer")
 parameters/Idle/blend_position = Vector2(0, 0)
-parameters/Walk/blend_position = Vector2(-1, 1)
+parameters/Walk/blend_position = Vector2(0, 0)
 
-[node name="StateMachine" type="Node" parent="." node_paths=PackedStringArray("initial_state")]
-script = ExtResource("4_boad6")
-initial_state = NodePath("Idle")
+[node name="Area2D" type="Area2D" parent="."]
 
-[node name="Idle" type="Node" parent="StateMachine"]
-script = ExtResource("4_g6k8r")
-
-[node name="Walking" type="Node" parent="StateMachine"]
-script = ExtResource("5_boad6")
-
-[node name="Playing" type="Node" parent="StateMachine"]
-script = ExtResource("6_rgyib")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+shape = SubResource("RectangleShape2D_g1dw6")

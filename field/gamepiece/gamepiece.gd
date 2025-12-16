@@ -1,53 +1,101 @@
 @icon("res://assets/editor/icons/Gamepiece.svg")
+## A class that can travel in multiple ways while snapped to a grid
+##
+## A Gamepiece is a generic class for anything that moves while snapped to the grid
+## The class does nothing on its own,
+## to use, you must extend the [Gamepiece] class from another node
+## [br][br]
+## Any class that extends [Gamepiece] will be able to follow a path on a [TileMapLayer]
+## given that it calls the relevant methods
 class_name Gamepiece extends Node2D
 
+# Constants
+## Tile Size in pixels
 const TILE_SIZE: int = 16
 
+# Signals
+## Emitted whenever a path is created and travel begins
 signal movement_started
+## Emitted whenever the gamepiece has finished travel or has collided
 signal movement_ended
 
+# Export Variables
+## This is the grid that the gamepiece travels on
 @export var tile_map_layer: TileMapLayer:
 	set(value):
 		tile_map_layer = value
 		update_configuration_warnings()
 
+## This is the sprite, used only in the physics process for movement.
+## The actual gamepiece moves instantly, we use the physics process to
+## have the sprite 'catch up' to the actual position.
+## This is done to optimize because we want to minimize stuff in physics process
 @export var sprite: AnimatedSprite2D:
 	set(value):
 		sprite = value
 		update_configuration_warnings()
 		
-## time between steps in seconds
+## Time to move to next tile in seconds
 @export var move_time: float = 0.5:
 	set(value):
 		move_time = value
 
-@export var ray_cast: RayCast2D:
-	set(value):
-		ray_cast = value
-
+# Class Variables (Members)
+## Used for collision
+var ray_cast: RayCast2D = RayCast2D.new()
+var area: Area2D = Area2D.new()
+var collision_shape: CollisionShape2D = CollisionShape2D.new()
+var rectangle_shape: RectangleShape2D = RectangleShape2D.new()
+## The grid used for pathfinding. a limiation of [AStarGrid2D] is that the grid is 
+## fully connected. That is, all tiles have edges (connections) to all other neighbour tiles.
+## so you cannot stop a [Gamepiece] from moving along a specific edge. To do that, you will have to
+## refactor using [ASTAR2D] instead and manually create the grid
 var astar_grid: AStarGrid2D = AStarGrid2D.new()
+## The gamepiece's current path of travel (array of tile coords)
 var curr_path: Array[Vector2i]
+## The target position of the gamepiece's current travel, in pixels
 var target_position: Vector2
+## The direction of travel
+var dir: Vector2
+# boolean statuses
 var is_moving: bool
 var is_colliding: bool = false
-var dir: Vector2
 
 func _ready() -> void:
+	# To begin, we update the godot editor to show warnings
 	update_configuration_warnings()
 		
-	## Check for tilemap
+	# Check for export vars, the gamepiece needs these to function, so we can assert them here
 	if not Engine.is_editor_hint():
 		assert(tile_map_layer, "Gamepiece '%s' must have a TileMapLayer reference to function!" % name)
 		assert(sprite, "Gamepiece '%s' must have a AnimatedSprite2D reference to function!" % name)
-		assert(ray_cast, "Gamepiece '%s' must have a RayCast2D reference to function!" % name)
 	
-	## Setup grid
+	# Setup RayCast2D, we are pointing a ray to an adjacent tile, in this case, the one below
+	ray_cast.target_position = Vector2.DOWN * TILE_SIZE
+	ray_cast.collide_with_areas = true # Make sure it will collide with areas
+	ray_cast.enabled = true 
+	add_child(ray_cast)  # Make sure it's part of the scene
+	
+	# Setup Area2D and CollisionShape2D, these represent the hitbox for collisions
+	# First we add the area
+	add_child(area) 
+	# Then we create a square for the hitbox
+	rectangle_shape.size.x = TILE_SIZE
+	rectangle_shape.size.y = TILE_SIZE
+	# Then we add that square to the collision shape
+	collision_shape.shape = rectangle_shape
+	# Finally add collision shape as a child of area
+	area.add_child(collision_shape)
+	
+	# Setup grid for pathfinding
 	astar_grid.region = tile_map_layer.get_used_rect()
 	astar_grid.cell_size = Vector2i(TILE_SIZE, TILE_SIZE)
 	astar_grid.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_NEVER
 	astar_grid.update()
 	
-	## Setup unwalkable tiles
+	# Setup unwalkable tiles, we are looping through the grid, and checking if
+	# the tile on the tile map is walkable or not. walkable is a custom data layer
+	# on our tiles
 	var region_size := astar_grid.region.size
 	var region_pos := astar_grid.region.position
 	for x in region_size.x:
@@ -56,90 +104,115 @@ func _ready() -> void:
 				x + region_pos.x, 
 				y + region_pos.y
 			)
+			# get the tile at this location and see if its walkable
 			var tile_data: TileData = tile_map_layer.get_cell_tile_data(tile_pos)
 			if tile_data == null or tile_data.get_custom_data("walkable") == false:
-				astar_grid.set_point_solid(tile_pos)
-				
-			
+				astar_grid.set_point_solid(tile_pos) # this sets the tile unwalkable
 
 func _physics_process(_delta: float) -> void:
+	# The only thing we do in this is we update the sprite to move towards the next position
+	# This class moves instantly, but we keep the sprite behind on purpose
+	# This is so we can optimize by only doing 1 thing in physics process 
+	# which is smoothly move the sprite
+	
+	# if the gamepiece is not moving we dont need to do anything
 	if is_moving == false:
 		return
 	
-	if global_position == sprite.global_position:
-		is_moving = false
-		return
-	
+	# otherwise we can move the sprite
 	sprite.global_position = sprite.global_position.move_toward(global_position, 1)
-	
 
 ## wait for sprite to finish moving
 func _wait_for_sprite_arrived() -> void:
 	while sprite.global_position != global_position:
 		await get_tree().physics_frame
 
+## Travel the [member curr_path]. [br][br]
+## This is the core function of [Gamepiece] which will travel along a path of 2d coords.
 func _travel_curr_path() -> void:	
-	
 	if curr_path.is_empty():
 		return	
+		
+	# overwrite colliision from any previous movement attempt
+	is_colliding = false
 	
-	### Get target pos and start moving if not already
-	#if is_moving == false:
+	# Get target position (in pixels)
 	target_position = tile_map_layer.map_to_local(curr_path.front())
 		
-	## Get direction of travel	
+	# Get direction of travel	
 	dir = (target_position - global_position).normalized()	
 	
-	## Get ray cast for collisions
+	# Set ray cast for collisions and see if we are colliding
 	ray_cast.target_position = dir * TILE_SIZE
 	_get_collision()
-		
+
 	if !is_colliding:
-		## Move, still not animation, that should be in physics process
+		# Move the Gamepiece, but not the actual sprite, that's in physics process
 		var orig_position := global_position
 		global_position = target_position
 		sprite.global_position = orig_position
 		
-		## update path after sprite is finished moving
+		# update path after sprite is finished moving
 		await _wait_for_sprite_arrived()
+		_took_step()
 		curr_path.pop_front()
 		
-		## if still points in path, target position is front of path
+		# if still points in path, next target position is front of path
 		if curr_path.is_empty() == false:
 			target_position = tile_map_layer.map_to_local(curr_path.front())
 			_travel_curr_path()
 		else:
-			emit_signal("movement_ended")
-			is_moving = false
+			_end_movement()
 
+## Returns a tile in the direction given [br][br]
+## [param direction]: should be a [Vector2].
 func get_target_tile_from_dir(direction: Vector2) -> Vector2i:
 	var curr_tile: Vector2i = tile_map_layer.local_to_map(global_position)
 	var target_tile: Vector2i = Vector2i(curr_tile.x + direction.x as int, curr_tile.y + direction.y as int)
 	return target_tile
 
+## start movement of [Gamepiece]
 func _start_movement() -> void:
-	emit_signal("movement_started")
+	movement_started.emit()
 	curr_path.clear()
 	is_moving = true
-
-func step(direction: Vector2) -> void:
-	_start_movement()
 	
+## end movement of [Gamepiece]
+func _end_movement() -> void:
+	curr_path.clear()
+	is_moving = false
+	movement_ended.emit()
+
+## Move [Gamepiece] by 1 tile in direction given [br][br]
+## [param direction]: should be a [Vector2].
+func step(direction: Vector2) -> void:
+	# Get the next tile we want to move to
 	var target_tile := get_target_tile_from_dir(direction)
+	# Check for walkability, in the ready method, those checks are just for the astar grid
+	# So, we still need to do this here
 	var tile_data := tile_map_layer.get_cell_tile_data(target_tile)
 	if tile_data == null or not tile_data.get_custom_data("walkable"):
 		return
+	
+	# If the tile is walkable, now we can start movement,
+	# otherwise if we were already moving we'd be stuck
+	_start_movement()
 	curr_path.append(target_tile)
 	_travel_curr_path()
 
+## Move [Gamepiece] in direction given until blocked or travelled optional given distance
+## [br][br][param direction] Should be a [Vector2]
+## [br][br][param distance] Should be an [int]
 func travel_straight_path(direction: Vector2, distance: int = -1) -> void:
 	_start_movement()
 	
+	# normalize the direction
 	var unit_dir: Vector2i = Vector2i(direction.x as int, direction.y as int)
 	var curr_tile: Vector2i = tile_map_layer.local_to_map(global_position)
 	var pos := curr_tile
 	var steps_taken := 0
-
+	
+	# This loop will generate the path
 	while true:
 		pos += unit_dir
 		steps_taken += 1
@@ -157,24 +230,32 @@ func travel_straight_path(direction: Vector2, distance: int = -1) -> void:
 	
 	_travel_curr_path()
 
+## Move [Gamepiece] towards a target tile using A* pathfinding
+## [br][br][param target_tile] Should be a [Vector2i]
 func travel_astar_path(target_tile: Vector2i) -> void:
+	# if the target tile is the current tile, we don't need to move
+	if target_tile == tile_map_layer.local_to_map(global_position):
+		return
+	
 	_start_movement()
 	
+	# This first part of the code is getting all other gamepieces to mark
+	# the tiles that are occupied.
+	# Each Gamepiece is in a group called gamepieces
 	var gamepieces = get_tree().get_nodes_in_group("gamepieces")
 	var occupied_positions: Array[Vector2i] = []
-	
 	for gamepiece in gamepieces:
 		if gamepiece == self:
 			continue
-		
+		# add a tile to occupied positions if a gamepiece is on it
 		occupied_positions.append(tile_map_layer.local_to_map(gamepiece.global_position))
-		
+	
+	# set occupied positions as unwalkable tiles in the grid
 	for occupied_position: Vector2i in occupied_positions:
 		astar_grid.set_point_solid(occupied_position)
-		
-	var path
 	
-	path = astar_grid.get_id_path(
+	# Create the astar path	and remove the starting position with slice
+	var path = astar_grid.get_id_path(
 		tile_map_layer.local_to_map(global_position),
 		target_tile
 	).slice(1)
@@ -182,11 +263,15 @@ func travel_astar_path(target_tile: Vector2i) -> void:
 	if path.is_empty() == false:
 		curr_path = path
 	
+	# Now that we have the path, we can reset the occupied positions.
+	# Any collisions now are handled in _travel_curr_path() 
 	for occupied_position: Vector2i in occupied_positions:
 		astar_grid.set_point_solid(occupied_position, false)
 	
 	_travel_curr_path()
 
+## Check if the [Gamepiece] is colliding using [member ray_cast][br][br]
+## If the raycast is colliding we can call [method _handle_collision].
 func _get_collision() -> void:
 	ray_cast.force_raycast_update()
 	if ray_cast.is_colliding():
@@ -194,6 +279,12 @@ func _get_collision() -> void:
 	else:
 		is_colliding = false
 
+## For a [Gamepiece], this func only sets the status and ends the movement
+## This function is meant to be overriden in child classes to do more stuff
 func _handle_collision() -> void:
 	is_colliding = true
-	## can do more stuff in children, make sure to call super for overrides
+	_end_movement()
+
+## Used for any child classes to do anything on each step taken
+func _took_step() -> void:
+	pass

@@ -1,6 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://db3lwegw2aet0"]
-
-[ext_resource type="Script" uid="uid://7xsb8hf3704r" path="res://field/gamepiece/gamepiece.gd" id="1_3r2yq"]
-
-[node name="Gamepiece" type="Node2D" groups=["gamepieces"]]
-script = ExtResource("1_3r2yq")
