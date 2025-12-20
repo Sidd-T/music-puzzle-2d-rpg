@@ -14,4 +14,10 @@ func update(_delta: float) -> void:
 	finished.emit(IDLE)
 
 func handle_input(event: InputEvent) -> void:
-	Songs.handle_input(event)
+	if event is InputEventKey:
+		if not event.is_pressed():
+			return
+
+		player.input_buffer.append(event.keycode)
+		print("Pressed '%s', which is ascii code %d" % [event.key_label, event.keycode])
+		player.check_sequence(player.input_buffer)

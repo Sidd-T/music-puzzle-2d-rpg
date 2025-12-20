@@ -2,8 +2,8 @@
 ## A class that can travel in multiple ways while snapped to a grid
 ##
 ## A Gamepiece is a generic class for anything that moves while snapped to the grid
-## The class does nothing on its own,
-## to use, you must extend the [Gamepiece] class from another node
+## The class does nothing on its own.
+## To use, you must extend the [Gamepiece] class from another node
 ## [br][br]
 ## Any class that extends [Gamepiece] will be able to follow a path on a [TileMapLayer]
 ## given that it calls the relevant methods

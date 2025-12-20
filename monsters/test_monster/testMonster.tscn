@@ -1,10 +1,7 @@
-[gd_scene load_steps=32 format=3 uid="uid://jufuoaaswbfi"]
+[gd_scene load_steps=29 format=3 uid="uid://jufuoaaswbfi"]
 
 [ext_resource type="Script" uid="uid://uq761moqsouv" path="res://monsters/test_monster/test_monster.gd" id="1_5ddo3"]
 [ext_resource type="Texture2D" uid="uid://6y5fxwylabrf" path="res://assets/enemies/Slime3/With_shadow/Slime3_Idle_with_shadow.png" id="1_hyjbj"]
-[ext_resource type="Script" uid="uid://d3eyscu3pvhbc" path="res://common/state_machine.gd" id="3_437eq"]
-[ext_resource type="Script" uid="uid://b3gjgrvdqlghi" path="res://monsters/test_monster/states/idle.gd" id="4_gev1m"]
-[ext_resource type="Script" uid="uid://ckcp1fhj2egma" path="res://monsters/test_monster/states/walking.gd" id="5_38ocd"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_8dj5n"]
 atlas = ExtResource("1_hyjbj")
@@ -205,13 +202,3 @@ parameters/Walk/blend_position = Vector2(0, 0)
 libraries = {
 &"": SubResource("AnimationLibrary_8dj5n")
 }
-
-[node name="StateMachine" type="Node" parent="." node_paths=PackedStringArray("initial_state")]
-script = ExtResource("3_437eq")
-initial_state = NodePath("Idle")
-
-[node name="Idle" type="Node" parent="StateMachine"]
-script = ExtResource("4_gev1m")
-
-[node name="Walking" type="Node" parent="StateMachine"]
-script = ExtResource("5_38ocd")

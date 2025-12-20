@@ -7,7 +7,7 @@ func enter(_previous_state_path: String, _data := {}) -> void:
 
 func update(_delta: float) -> void:
 	
-	var movement_callable := Callable(player, "step")
+	var step := Callable(player, "step")
 	var input_dir: Vector2
 	
 	var next_action := "idle"
@@ -33,13 +33,13 @@ func update(_delta: float) -> void:
 		"idle":
 			return
 		"walking":
-			finished.emit(WALKING, { "move_func": movement_callable, "param": input_dir })
+			finished.emit(WALKING, { "move_func": step, "param": input_dir })
 		"start_song":
 			finished.emit(PLAYING)
 
 func handle_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.is_pressed() and event.button_index == MOUSE_BUTTON_LEFT:
-		var movement_callable := Callable(player, "travel_astar_path")
+		var travel_astar_path := Callable(player, "travel_astar_path")
 		var target_tile := player.tile_map_layer.local_to_map(player.get_global_mouse_position())
-		finished.emit(WALKING, { "move_func": movement_callable, "param": target_tile })
+		finished.emit(WALKING, { "move_func": travel_astar_path, "param": target_tile })
 	

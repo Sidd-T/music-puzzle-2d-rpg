@@ -17,7 +17,7 @@ config/icon="res://icon.svg"
 
 [autoload]
 
-Songs="*res://player/songs/songs.gd"
+Globals="*res://common/globals.gd"
 
 [display]
 

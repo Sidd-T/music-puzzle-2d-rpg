@@ -3,6 +3,12 @@ class_name TestMonster extends Monster
 @onready var animation_tree = $AnimationTree
 @onready var animation_state = animation_tree.get("parameters/playback")
 
+# This enum lists all the possible states the character can be in.
+enum States {IDLE, WALKING}
+
+# This variable keeps track of the character's current state.
+var state: States = States.IDLE
+
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	# make sure we are setting up correctly with the parent nodes' readys

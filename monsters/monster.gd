@@ -7,7 +7,7 @@
 ## to use, you must extend the [Monster] class from another node
 ## [br][br]
 ## Any class that extends [Monster] will be able be a [Gamepiece], but also have
-## additional functionality
+## additional functionality related to NPC
 class_name Monster extends Gamepiece
 
 ## This is the reference to the player
