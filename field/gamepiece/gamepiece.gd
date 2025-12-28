@@ -62,6 +62,7 @@ var dir: Vector2
 # boolean statuses
 var is_moving: bool
 var is_colliding: bool = false
+var is_pushing: bool = false
 
 func _ready() -> void:
 	# To begin, we update the godot editor to show warnings
@@ -191,8 +192,9 @@ func _travel_path(curr_path: Array[Vector2i]) -> void:
 		is_moving = false 
 		return
 		
-	# overwrite colliision from any previous movement attempt
+	# overwrite collision and pushing from any previous movement attempt
 	is_colliding = false
+	is_pushing = false
 	
 	# Get target position (in pixels)
 	target_position = tile_map_layer.map_to_local(curr_path.front())
@@ -205,7 +207,7 @@ func _travel_path(curr_path: Array[Vector2i]) -> void:
 	ray_cast.target_position = dir * TILE_SIZE
 	_get_collision()
 
-	if !is_colliding:
+	if !is_colliding or is_pushing:
 		# Move the Gamepiece, but not the actual sprite, that's in physics process
 		var orig_position := global_position
 		global_position = target_position
@@ -355,12 +357,22 @@ func _get_collision() -> void:
 ## This function is meant to be overriden in child classes to do more stuff
 func _handle_collision() -> void:
 	is_colliding = true
-	_end_movement()
+	var collider = ray_cast.get_collider()
+	if collider is Area2D:
+		# Get the parent of the Area2D to check if it belongs to a Pushable
+		var collider_gamepiece = collider.get_parent()  # This should be the Gamepiece
+		if collider_gamepiece is Pushable:
+			if collider_gamepiece.can_move(dir):
+				is_pushing = true
+				print(is_pushing)
+				collider_gamepiece.step(dir)
+				
+	if !is_pushing:
+		_end_movement()
 
 ## Used for any child classes to do anything on each step taken
 func _took_step() -> void:
 	curr_tile = tile_map_layer.local_to_map(global_position)
-	pass
 
 ## Used for any child classes to do anything on each direction update
 func _direction_updated() -> void:

@@ -1,8 +1,9 @@
-[gd_scene load_steps=6 format=4 uid="uid://btqi0vewf7en7"]
+[gd_scene load_steps=7 format=4 uid="uid://btqi0vewf7en7"]
 
 [ext_resource type="Texture2D" uid="uid://b6xbdsvkmx03h" path="res://assets/environment/dungeon/PNG/walls_floor.png" id="1_fj7yv"]
 [ext_resource type="PackedScene" uid="uid://0vqjw0ednx2q" path="res://player/player.tscn" id="2_tlwt5"]
 [ext_resource type="PackedScene" uid="uid://jufuoaaswbfi" path="res://monsters/test_monster/testMonster.tscn" id="3_tlwt5"]
+[ext_resource type="PackedScene" uid="uid://d35dofaj4cevl" path="res://field/pushable/test_pushable.tscn" id="4_aqk2v"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_aqk2v"]
 texture = ExtResource("1_fj7yv")
@@ -367,8 +368,14 @@ tile_set = SubResource("TileSet_036b0")
 [node name="Player" parent="Field" node_paths=PackedStringArray("tile_map_layer") instance=ExtResource("2_tlwt5")]
 unique_name_in_owner = true
 position = Vector2(24, 56)
+move_time = null
 tile_map_layer = NodePath("../TileMapLayer")
 
 [node name="TestMonster" parent="Field" node_paths=PackedStringArray("tile_map_layer") instance=ExtResource("3_tlwt5")]
 position = Vector2(72, 136)
+move_time = null
+tile_map_layer = NodePath("../TileMapLayer")
+
+[node name="TestPushable" parent="Field" node_paths=PackedStringArray("tile_map_layer") instance=ExtResource("4_aqk2v")]
+position = Vector2(40, 120)
 tile_map_layer = NodePath("../TileMapLayer")
