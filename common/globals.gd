@@ -1,12 +1,3 @@
 extends Node
 
-enum Songs {
-	SONG1,
-	SONG2
-}
-
-## The configured functions and the input sequences to trigger
-const SongInputs: Dictionary[String, Songs] = {
-	"12345": Songs.SONG1,
-	"15243": Songs.SONG2
-}
+enum Notes {NOTE1, NOTE2, NOTE3, NOTE4, NOTE5}

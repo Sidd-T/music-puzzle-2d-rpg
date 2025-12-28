@@ -11,11 +11,16 @@
 ## So, we can give it the direction as an input, and then the corresponding animation 
 ## plays depending on the animation state we're in
 class_name Player extends Gamepiece
+		
+## States that the player can be in
+enum State {IDLE, WALKING, SLIDING, PLAYING}
+## Variable to keep track of current state
+var prev_state := State.IDLE
+var curr_state := State.IDLE
 
 # Signals
-## Signal for when player starts a song
-@warning_ignore("unused_signal")
-signal song_started(song: Globals.Songs)
+## Signal for when player plays a note
+signal note_played(note: Globals.Notes)
 
 ## Contains a state machine and blend space for each state
 @onready var animation_tree = $AnimationTree;
@@ -24,65 +29,78 @@ signal song_started(song: Globals.Songs)
 
 ## Describes the range in which monsters are affected by the song, in Manhattan distance
 var song_range: int = 3
-## A buffer of entered keys
-var input_buffer: Array = []
-
-## The processed sequences, converted from string to an array of ascii keys
-var _sequences: Dictionary[Array, Globals.Songs] = {}
-## The longest sequence we need to handle
-var max_sequence_length: int
 
 func _ready() -> void:
 	super()
-	_build_sequences()
+	_transition_to_next_state(State.IDLE, "Idle")
 
-## Map each song sequence to ascii codes and get the max sequence length
-func _build_sequences() -> void:
-	_sequences.clear()
-	max_sequence_length = 0
-	for song in Globals.SongInputs:
-		## Converting string to ascii input keys
-		_sequences[Array(song.to_ascii_buffer())] = Globals.SongInputs[song]
-		## update max sequence length
-		if max_sequence_length < song.length():
-			max_sequence_length = song.length()
-
-## This function checks the passed in buffer to the sequences[br][br]
-## If the buffer is equal to one of the sequences,the player
-## emits the corresponding song signal, then clears the buffer[br][br]
-## [param buf] the buffer being checked, is an array of event keycodes
-func check_sequence(buf: Array) -> void:
-	for sequence in _sequences:
-		if sequence == buf.slice(-sequence.size()):
-			song_started.emit(_sequences[sequence])
-			buf.clear()
+func _process(_delta: float) -> void:
+	# Have to return otherwise process will continously get our input and try and move
+	if is_moving:
+		return 
 	
-	while buf.size() > max_sequence_length:
-		buf.pop_front()
+	# getting our input
+	if Input.is_action_pressed("ui_up"):
+		step(Vector2.UP)
+	elif Input.is_action_pressed("ui_down"):
+		step(Vector2.DOWN)
+	elif Input.is_action_pressed("ui_left"):
+		step(Vector2.LEFT)
+	elif Input.is_action_pressed("ui_right"):
+		step(Vector2.RIGHT)
 
-func cancel_sequence() -> void:
-	input_buffer.clear()
+## This is an addition function to add point and click movement to the player
+func _unhandled_input(event: InputEvent) -> void:
+	super(event)
+	
+	if curr_state != State.IDLE:
+		return
+	
+	# We check if mouse was clicked, and get to tile that is at the mouse position to pathfind to
+	if event is InputEventMouseButton and event.is_pressed() and event.button_index == MOUSE_BUTTON_LEFT:
+		travel_astar_path(tile_map_layer.local_to_map(get_global_mouse_position()))
+		return
+	
+	handle_note_input(event)
 
-#func _process(_delta: float) -> void:
-	#
-	#animation_tree.set("parameters/Idle/blend_position", dir)
-	#animation_tree.set("parameters/Walk/blend_position", dir)
-	#
-	#if is_moving:
-		#animation_state.travel("Walk")
-		#return
-	#
-	#if Input.is_action_pressed("ui_up"):
-		#step(Vector2.UP)
-	#elif Input.is_action_pressed("ui_down"):
-		#step(Vector2.DOWN)
-	#elif Input.is_action_pressed("ui_left"):
-		#step(Vector2.LEFT)
-	#elif Input.is_action_pressed("ui_right"):
-		#step(Vector2.RIGHT)
-	#else:
-		#animation_state.travel("Idle");	
-		#
-#func _input(event: InputEvent) -> void:
-	#if event is InputEventMouseButton and event.is_pressed() and event.button_index == MOUSE_BUTTON_LEFT:
-		#travel_astar_path(tile_map_layer.local_to_map(get_global_mouse_position()))
+func handle_note_input(event: InputEvent) -> void:
+	var note: Globals.Notes
+	var playing_note := false
+	if event.is_action_pressed("note_1"):
+		note = Globals.Notes.NOTE1
+		playing_note = true
+	if event.is_action_pressed("note_2"):
+		note = Globals.Notes.NOTE2
+		playing_note = true
+	if event.is_action_pressed("note_3"):
+		note = Globals.Notes.NOTE3
+		playing_note = true
+	if event.is_action_pressed("note_4"):
+		note = Globals.Notes.NOTE4
+		playing_note = true
+	if event.is_action_pressed("note_5"):
+		note = Globals.Notes.NOTE5
+		playing_note = true
+	
+	if playing_note:
+		print("playing note", note)
+		note_played.emit(note)
+	
+	
+
+func _direction_updated() -> void:
+	animation_tree.set("parameters/Idle/blend_position", dir)
+	animation_tree.set("parameters/Walk/blend_position", dir)
+
+func _start_movement() -> void:
+	super()
+	_transition_to_next_state(State.WALKING, "Walk")
+
+func _end_movement() -> void:
+	super()
+	_transition_to_next_state(State.IDLE, "Idle")
+
+func _transition_to_next_state(new_state: State, anim_state: String) -> void:
+	prev_state = curr_state
+	curr_state = new_state
+	animation_state.travel(anim_state)

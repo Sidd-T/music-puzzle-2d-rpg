@@ -41,18 +41,20 @@ signal movement_ended
 		move_time = value
 
 # Class Variables (Members)
+## Godot handles Undo/Redo with this object
+var undo_redo := UndoRedo.new()
 ## Used for collision
-var ray_cast: RayCast2D = RayCast2D.new()
-var area: Area2D = Area2D.new()
-var collision_shape: CollisionShape2D = CollisionShape2D.new()
-var rectangle_shape: RectangleShape2D = RectangleShape2D.new()
+var ray_cast := RayCast2D.new()
+var area := Area2D.new()
+var collision_shape := CollisionShape2D.new()
+var rectangle_shape := RectangleShape2D.new()
 ## The grid used for pathfinding. a limiation of [AStarGrid2D] is that the grid is 
 ## fully connected. That is, all tiles have edges (connections) to all other neighbour tiles.
 ## so you cannot stop a [Gamepiece] from moving along a specific edge. To do that, you will have to
 ## refactor using [ASTAR2D] instead and manually create the grid
-var astar_grid: AStarGrid2D = AStarGrid2D.new()
-## The gamepiece's current path of travel (array of tile coords)
-var curr_path: Array[Vector2i]
+var astar_grid := AStarGrid2D.new()
+## The gamepiece's current tile position
+var curr_tile: Vector2i
 ## The target position of the gamepiece's current travel, in pixels
 var target_position: Vector2
 ## The direction of travel
@@ -108,6 +110,45 @@ func _ready() -> void:
 			var tile_data: TileData = tile_map_layer.get_cell_tile_data(tile_pos)
 			if tile_data == null or tile_data.get_custom_data("walkable") == false:
 				astar_grid.set_point_solid(tile_pos) # this sets the tile unwalkable
+	
+	## set the curr position
+	curr_tile = tile_map_layer.local_to_map(global_position)
+
+## This function will commit a movement action using Godot's
+## UndoRedo Node. To do this we hook the _travel_path function 
+## to the do and undo using a forward and backwards path [br][br]
+## [param path] Should be an array of coords for the tile map
+func _commit_movement_action(path: Array[Vector2i]):
+	# Create a forward and backward path
+	var init_position: Vector2i = path.front()
+	
+	# Create the action
+	undo_redo.create_action("Move")
+	
+	# Add the methods for do and undo
+	undo_redo.add_do_method(
+		Callable(self, "_travel_path").bind(path)
+	)
+	undo_redo.add_undo_method(
+		Callable(self, "_teleport_to_tile").bind(init_position)
+	)
+	
+	# Commit the movement action
+	undo_redo.commit_action()
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("undo"):
+		if undo_redo.has_undo():
+			print("undo")
+			# block undo while moving
+			if not is_moving:
+				undo_redo.undo()
+
+	elif event.is_action_pressed("redo"):
+		if undo_redo.has_redo():
+			#  block redo while moving
+			if not is_moving:
+				undo_redo.redo()
 
 func _physics_process(_delta: float) -> void:
 	# The only thing we do in this is we update the sprite to move towards the next position
@@ -127,11 +168,28 @@ func _wait_for_sprite_arrived() -> void:
 	while sprite.global_position != global_position:
 		await get_tree().physics_frame
 
-## Travel the [member curr_path]. [br][br]
+## Function to immediately move a gamepiece to a target tile [br][br]
+## [param target_tile] should be [Vector2i]
+func _teleport_to_tile(target_tile: Vector2i) -> void:
+	var target_pos := tile_map_layer.map_to_local(target_tile)
+	global_position = target_pos
+	curr_tile = tile_map_layer.local_to_map(global_position)
+	is_moving = false
+	return
+
+## Travel the [param curr_path]. [br][br]
 ## This is the core function of [Gamepiece] which will travel along a path of 2d coords.
-func _travel_curr_path() -> void:	
+func _travel_path(curr_path: Array[Vector2i]) -> void:	
+	# if the gamepiece's current tile is in the path, we need to pop it
+	# This is needed for undo/redo logic where we send in a reverse path
+	while !curr_path.is_empty() and curr_path.front() == curr_tile:
+		curr_path.pop_front()
+
+	# Check if no path found 
 	if curr_path.is_empty():
-		return	
+		# In this case we don't call _end_movement b/c if we're here we didn't move
+		is_moving = false 
+		return
 		
 	# overwrite colliision from any previous movement attempt
 	is_colliding = false
@@ -141,6 +199,7 @@ func _travel_curr_path() -> void:
 		
 	# Get direction of travel	
 	dir = (target_position - global_position).normalized()	
+	_direction_updated()
 	
 	# Set ray cast for collisions and see if we are colliding
 	ray_cast.target_position = dir * TILE_SIZE
@@ -157,29 +216,26 @@ func _travel_curr_path() -> void:
 		_took_step()
 		curr_path.pop_front()
 		
-		# if still points in path, next target position is front of path
+		# if still points in path, recursive call to travel again
 		if curr_path.is_empty() == false:
-			target_position = tile_map_layer.map_to_local(curr_path.front())
-			_travel_curr_path()
+			_travel_path(curr_path)
 		else:
 			_end_movement()
+			return
 
 ## Returns a tile in the direction given [br][br]
 ## [param direction]: should be a [Vector2].
 func get_target_tile_from_dir(direction: Vector2) -> Vector2i:
-	var curr_tile: Vector2i = tile_map_layer.local_to_map(global_position)
 	var target_tile: Vector2i = Vector2i(curr_tile.x + direction.x as int, curr_tile.y + direction.y as int)
 	return target_tile
 
 ## start movement of [Gamepiece]
 func _start_movement() -> void:
 	movement_started.emit()
-	curr_path.clear()
 	is_moving = true
 	
 ## end movement of [Gamepiece]
 func _end_movement() -> void:
-	curr_path.clear()
 	is_moving = false
 	movement_ended.emit()
 
@@ -197,8 +253,10 @@ func step(direction: Vector2) -> void:
 	# If the tile is walkable, now we can start movement,
 	# otherwise if we were already moving we'd be stuck
 	_start_movement()
+	var curr_path: Array[Vector2i]
+	curr_path.append(curr_tile)
 	curr_path.append(target_tile)
-	_travel_curr_path()
+	_commit_movement_action(curr_path)
 
 ## Move [Gamepiece] in direction given until blocked or travelled optional given distance
 ## [br][br][param direction] Should be a [Vector2]
@@ -208,9 +266,11 @@ func travel_straight_path(direction: Vector2, distance: int = -1) -> void:
 	
 	# normalize the direction
 	var unit_dir: Vector2i = Vector2i(direction.x as int, direction.y as int)
-	var curr_tile: Vector2i = tile_map_layer.local_to_map(global_position)
+	#var curr_tile: Vector2i = tile_map_layer.local_to_map(global_position)
 	var pos := curr_tile
 	var steps_taken := 0
+	var curr_path: Array[Vector2i]
+	curr_path.append(curr_tile)
 	
 	# This loop will generate the path
 	while true:
@@ -228,13 +288,24 @@ func travel_straight_path(direction: Vector2, distance: int = -1) -> void:
 
 		curr_path.append(pos)
 	
-	_travel_curr_path()
+	_commit_movement_action(curr_path)
+
+## Get whether a target tile is valid to move to
+## [br][br][param target_tile] Should be a [Vector2i]
+func _is_target_tile_valid(target_tile: Vector2i) -> bool:
+	var target_invalid = false
+	var tile_data := tile_map_layer.get_cell_tile_data(target_tile)
+	if tile_data == null or not tile_data.get_custom_data("walkable")\
+	or target_tile == tile_map_layer.local_to_map(global_position):
+		target_invalid = true
+	
+	return target_invalid
 
 ## Move [Gamepiece] towards a target tile using A* pathfinding
 ## [br][br][param target_tile] Should be a [Vector2i]
 func travel_astar_path(target_tile: Vector2i) -> void:
-	# if the target tile is the current tile, we don't need to move
-	if target_tile == tile_map_layer.local_to_map(global_position):
+	
+	if _is_target_tile_valid(target_tile):
 		return
 	
 	_start_movement()
@@ -258,8 +329,9 @@ func travel_astar_path(target_tile: Vector2i) -> void:
 	var path = astar_grid.get_id_path(
 		tile_map_layer.local_to_map(global_position),
 		target_tile
-	).slice(1)
+	)
 	
+	var curr_path: Array[Vector2i]
 	if path.is_empty() == false:
 		curr_path = path
 	
@@ -268,7 +340,7 @@ func travel_astar_path(target_tile: Vector2i) -> void:
 	for occupied_position: Vector2i in occupied_positions:
 		astar_grid.set_point_solid(occupied_position, false)
 	
-	_travel_curr_path()
+	_commit_movement_action(curr_path)
 
 ## Check if the [Gamepiece] is colliding using [member ray_cast][br][br]
 ## If the raycast is colliding we can call [method _handle_collision].
@@ -287,4 +359,9 @@ func _handle_collision() -> void:
 
 ## Used for any child classes to do anything on each step taken
 func _took_step() -> void:
+	curr_tile = tile_map_layer.local_to_map(global_position)
+	pass
+
+## Used for any child classes to do anything on each direction update
+func _direction_updated() -> void:
 	pass

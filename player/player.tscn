@@ -1,12 +1,8 @@
-[gd_scene load_steps=91 format=3 uid="uid://0vqjw0ednx2q"]
+[gd_scene load_steps=87 format=3 uid="uid://0vqjw0ednx2q"]
 
 [ext_resource type="Texture2D" uid="uid://bvw6bwph7wr4b" path="res://assets/player/Slime1/With_shadow/Slime1_Idle_with_shadow.png" id="1_3vswi"]
 [ext_resource type="Script" uid="uid://du8g31kfnayoa" path="res://player/scripts/player.gd" id="1_btcbx"]
 [ext_resource type="Texture2D" uid="uid://dc7s1v4c2ofrw" path="res://assets/player/Slime1/With_shadow/Slime1_Walk_with_shadow.png" id="3_3qktu"]
-[ext_resource type="Script" uid="uid://d3eyscu3pvhbc" path="res://common/state_machine.gd" id="4_boad6"]
-[ext_resource type="Script" uid="uid://dy3hgrfp5ey2l" path="res://player/states/idle.gd" id="4_g6k8r"]
-[ext_resource type="Script" uid="uid://bl0ijcgulra7x" path="res://player/states/walking.gd" id="5_boad6"]
-[ext_resource type="Script" uid="uid://dk8iu4t1finsd" path="res://player/states/playing.gd" id="6_rgyib"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_gwnis"]
 atlas = ExtResource("1_3vswi")
@@ -810,16 +806,3 @@ tree_root = SubResource("AnimationNodeStateMachine_hq2ud")
 anim_player = NodePath("../AnimationPlayer")
 parameters/Idle/blend_position = Vector2(0, 0)
 parameters/Walk/blend_position = Vector2(-1, 1)
-
-[node name="StateMachine" type="Node" parent="." node_paths=PackedStringArray("initial_state")]
-script = ExtResource("4_boad6")
-initial_state = NodePath("Idle")
-
-[node name="Idle" type="Node" parent="StateMachine"]
-script = ExtResource("4_g6k8r")
-
-[node name="Walking" type="Node" parent="StateMachine"]
-script = ExtResource("5_boad6")
-
-[node name="Playing" type="Node" parent="StateMachine"]
-script = ExtResource("6_rgyib")
