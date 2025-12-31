@@ -41,8 +41,6 @@ signal movement_ended
 		move_time = value
 
 # Class Variables (Members)
-## Godot handles Undo/Redo with this object
-var undo_redo := UndoRedo.new()
 ## Used for collision
 var ray_cast := RayCast2D.new()
 var area := Area2D.new()
@@ -116,40 +114,23 @@ func _ready() -> void:
 	curr_tile = tile_map_layer.local_to_map(global_position)
 
 ## This function will commit a movement action using Godot's
-## UndoRedo Node. To do this we hook the _travel_path function 
+## UndoRedo Node in the Globals node. To do this we hook the _travel_path function 
 ## to the do and undo using a forward and backwards path [br][br]
 ## [param path] Should be an array of coords for the tile map
 func _commit_movement_action(path: Array[Vector2i]):
-	# Create a forward and backward path
+	# For safety, make sure an action is created
+	Globals.ensure_action_started()
+	
+	# Record init position
 	var init_position: Vector2i = path.front()
 	
-	# Create the action
-	undo_redo.create_action("Move")
-	
-	# Add the methods for do and undo
-	undo_redo.add_do_method(
-		Callable(self, "_travel_path").bind(path)
-	)
-	undo_redo.add_undo_method(
+	# Add the method for undo
+	Globals.undo_redo.add_undo_method(
 		Callable(self, "_teleport_to_tile").bind(init_position)
 	)
 	
-	# Commit the movement action
-	undo_redo.commit_action()
-
-func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("undo"):
-		if undo_redo.has_undo():
-			print("undo")
-			# block undo while moving
-			if not is_moving:
-				undo_redo.undo()
-
-	elif event.is_action_pressed("redo"):
-		if undo_redo.has_redo():
-			#  block redo while moving
-			if not is_moving:
-				undo_redo.redo()
+	# Start actually moving
+	_travel_path(path)
 
 func _physics_process(_delta: float) -> void:
 	# The only thing we do in this is we update the sprite to move towards the next position
@@ -157,7 +138,7 @@ func _physics_process(_delta: float) -> void:
 	# This is so we can optimize by only doing 1 thing in physics process 
 	# which is smoothly move the sprite
 	
-	# if the gamepiece is not moving we dont need to do anything
+	# If the gamepiece is not moving we dont need to do anything
 	if is_moving == false:
 		return
 	
@@ -233,6 +214,7 @@ func get_target_tile_from_dir(direction: Vector2) -> Vector2i:
 
 ## start movement of [Gamepiece]
 func _start_movement() -> void:
+	Globals.register_movement_start()
 	movement_started.emit()
 	is_moving = true
 	
@@ -240,6 +222,7 @@ func _start_movement() -> void:
 func _end_movement() -> void:
 	is_moving = false
 	movement_ended.emit()
+	Globals.register_movement_end()
 
 ## Move [Gamepiece] by 1 tile in direction given [br][br]
 ## [param direction]: should be a [Vector2].
@@ -364,7 +347,6 @@ func _handle_collision() -> void:
 		if collider_gamepiece is Pushable:
 			if collider_gamepiece.can_move(dir):
 				is_pushing = true
-				print(is_pushing)
 				collider_gamepiece.step(dir)
 				
 	if !is_pushing:

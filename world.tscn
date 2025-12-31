@@ -368,12 +368,10 @@ tile_set = SubResource("TileSet_036b0")
 [node name="Player" parent="Field" node_paths=PackedStringArray("tile_map_layer") instance=ExtResource("2_tlwt5")]
 unique_name_in_owner = true
 position = Vector2(24, 56)
-move_time = null
 tile_map_layer = NodePath("../TileMapLayer")
 
 [node name="TestMonster" parent="Field" node_paths=PackedStringArray("tile_map_layer") instance=ExtResource("3_tlwt5")]
 position = Vector2(72, 136)
-move_time = null
 tile_map_layer = NodePath("../TileMapLayer")
 
 [node name="TestPushable" parent="Field" node_paths=PackedStringArray("tile_map_layer") instance=ExtResource("4_aqk2v")]

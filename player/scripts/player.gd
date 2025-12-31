@@ -41,23 +41,26 @@ func _process(_delta: float) -> void:
 	
 	# getting our input
 	if Input.is_action_pressed("ui_up"):
+		Globals.begin_advance_game_state()
 		step(Vector2.UP)
 	elif Input.is_action_pressed("ui_down"):
+		Globals.begin_advance_game_state()
 		step(Vector2.DOWN)
 	elif Input.is_action_pressed("ui_left"):
+		Globals.begin_advance_game_state()
 		step(Vector2.LEFT)
 	elif Input.is_action_pressed("ui_right"):
+		Globals.begin_advance_game_state()
 		step(Vector2.RIGHT)
 
 ## This is an addition function to add point and click movement to the player
-func _unhandled_input(event: InputEvent) -> void:
-	super(event)
-	
+func _unhandled_input(event: InputEvent) -> void:	
 	if curr_state != State.IDLE:
 		return
 	
 	# We check if mouse was clicked, and get to tile that is at the mouse position to pathfind to
 	if event is InputEventMouseButton and event.is_pressed() and event.button_index == MOUSE_BUTTON_LEFT:
+		Globals.begin_advance_game_state()
 		travel_astar_path(tile_map_layer.local_to_map(get_global_mouse_position()))
 		return
 	
@@ -83,6 +86,7 @@ func handle_note_input(event: InputEvent) -> void:
 		playing_note = true
 	
 	if playing_note:
+		Globals.begin_advance_game_state()
 		print("playing note", note)
 		note_played.emit(note)
 	
