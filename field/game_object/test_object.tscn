@@ -1,6 +1,6 @@
 [gd_scene load_steps=29 format=3 uid="uid://d35dofaj4cevl"]
 
-[ext_resource type="Script" uid="uid://cab8r2th8bfmf" path="res://field/pushable/pushable.gd" id="1_ne11a"]
+[ext_resource type="Script" uid="uid://cab8r2th8bfmf" path="res://field/game_object/game_object.gd" id="1_7dk20"]
 [ext_resource type="Texture2D" uid="uid://bdyo1onowc8u4" path="res://assets/enemies/Slime2/With_shadow/Slime2_Idle_with_shadow.png" id="2_merkx"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_hebfx"]
@@ -184,10 +184,10 @@ _data = {
 &"idle_down": SubResource("Animation_df7aa")
 }
 
-[node name="TestPushable" type="Node2D" node_paths=PackedStringArray("sprite")]
-script = ExtResource("1_ne11a")
+[node name="TestObject" type="Node2D" node_paths=PackedStringArray("sprite") groups=["gamepieces"]]
+script = ExtResource("1_7dk20")
 sprite = NodePath("AnimatedSprite2D")
-move_time = 0.8
+pushable = true
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 sprite_frames = SubResource("SpriteFrames_uu515")

@@ -32,6 +32,7 @@ func _ready() -> void:
 
 ## Overrides [method _took_step] in [Gamepiece].
 func _took_step() -> void:
+	super()
 	_update_in_range()
 
 ## Checks if this monster in in the Player range and updates 
