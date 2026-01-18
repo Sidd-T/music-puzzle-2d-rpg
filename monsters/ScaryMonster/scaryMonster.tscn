@@ -1,6 +1,6 @@
 [gd_scene load_steps=29 format=3 uid="uid://jufuoaaswbfi"]
 
-[ext_resource type="Script" uid="uid://uq761moqsouv" path="res://monsters/test_monster/test_monster.gd" id="1_5ddo3"]
+[ext_resource type="Script" uid="uid://uq761moqsouv" path="res://monsters/ScaryMonster/scary_monster.gd" id="1_5ddo3"]
 [ext_resource type="Texture2D" uid="uid://6y5fxwylabrf" path="res://assets/enemies/Slime3/With_shadow/Slime3_Idle_with_shadow.png" id="1_hyjbj"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_8dj5n"]

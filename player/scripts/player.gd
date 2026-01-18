@@ -13,7 +13,7 @@
 class_name Player extends Gamepiece
 		
 ## States that the player can be in
-enum State {IDLE, WALKING, SLIDING, PLAYING}
+enum State {IDLE, WALKING, SLIDING, PLAYING, DIE}
 ## Variable to keep track of current state
 var prev_state := State.IDLE
 var curr_state := State.IDLE
@@ -28,7 +28,7 @@ signal note_played(note: Globals.Notes)
 @onready var animation_state = animation_tree.get("parameters/playback")
 
 ## Describes the range in which monsters are affected by the song, in Manhattan distance
-var song_range: int = 3
+@export var song_range: int = 7
 
 func _ready() -> void:
 	super()
@@ -48,6 +48,16 @@ func _process(_delta: float) -> void:
 		step(Vector2.LEFT)
 	elif Input.is_action_pressed("ui_right"):
 		step(Vector2.RIGHT)
+		
+		
+	### TODO: 
+	# if come in contact with scary monster, play die animation and quit getting input forever 
+	# (quit process) until game is reset
+	# In gamepiece script, add a new group of "things in contact"
+	# then for player we can check the group if things in contact include a "scary monster"
+	# if yes, then play die animation and quit
+	#if 
+	#die()
 
 ## This is an addition function to add point and click movement to the player
 func _unhandled_input(event: InputEvent) -> void:	
@@ -103,3 +113,19 @@ func _transition_to_next_state(new_state: State, anim_state: String) -> void:
 	prev_state = curr_state
 	curr_state = new_state
 	animation_state.travel(anim_state)
+	
+#func _handle_collision() -> void:
+	#super()
+	## Get the parent of the Area2D to check if it belongs to a Gamepiece
+	#var colliding_object = check_collider() 
+	# This should be the Gamepiece you're colliding with, 
+	# but it could return something else that's not gampiece
+	#if colliding_object is ScaryMonster:
+		#_end_movement()
+		#die()
+
+# play die animation
+func die() -> void:
+	_end_movement()
+	_transition_to_next_state(State.DIE, "Die")
+	

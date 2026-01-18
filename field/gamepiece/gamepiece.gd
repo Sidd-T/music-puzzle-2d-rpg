@@ -335,18 +335,25 @@ func _get_collision() -> void:
 ## This function is meant to be overriden in child classes to do more stuff
 func _handle_collision() -> void:
 	is_colliding = true
-	var collider = ray_cast.get_collider()
-	if collider is Area2D:
-		# Get the parent of the Area2D to check if it belongs to a Gamepiece
-		var collider_gamepiece = collider.get_parent()  # This should be the Gamepiece
-		if collider_gamepiece is Gamepiece:
-			if collider_gamepiece.can_be_pushed(dir):
-				is_pushing = true
-				collider_gamepiece.is_being_pushed = true
-				collider_gamepiece.step(dir)
+	# Get the parent of the Area2D to check if it belongs to a Gamepiece
+	var colliding_object = check_collider() 
+	# This should be the Gamepiece you're colliding with, 
+	# but it could return something else that's not gampiece
+	if colliding_object is Gamepiece:
+		if colliding_object.can_be_pushed(dir):
+			is_pushing = true
+			colliding_object.is_being_pushed = true
+			colliding_object.step(dir)
 				
 	if !is_pushing:
 		_end_movement()
+
+# For a [Gamepiece], check if it's colliding with something and what that thing is,
+# This helper function returns the parent of the hit box, which should be the thing the hit box
+# belongs to, such as gamepiece (but could be other things too)
+func check_collider() -> Node:
+	# Get the parent of the Area2D to check if it belongs to a Gamepiece
+	return ray_cast.get_collider().get_parent()
 		
 ## This function will check the raycast collision and walkability
 ## of a target tile in the direction given, and returns if we can push this Gamepiece [br][br]
