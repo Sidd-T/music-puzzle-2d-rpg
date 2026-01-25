@@ -39,6 +39,8 @@ func _process(_delta: float) -> void:
 	if is_moving:
 		return 
 	
+	_transition_to_next_state(State.IDLE, "Idle")
+	
 	# getting our input
 	if Input.is_action_pressed("ui_up"):
 		step(Vector2.UP)
@@ -97,7 +99,7 @@ func handle_note_input(event: InputEvent) -> void:
 	
 	
 
-func _direction_updated() -> void:
+func direction_updated() -> void:
 	animation_tree.set("parameters/Idle/blend_position", dir)
 	animation_tree.set("parameters/Walk/blend_position", dir)
 
@@ -126,6 +128,6 @@ func _transition_to_next_state(new_state: State, anim_state: String) -> void:
 
 # play die animation
 func die() -> void:
-	_end_movement()
+	clear_path()
 	_transition_to_next_state(State.DIE, "Die")
 	

@@ -30,8 +30,8 @@ func _ready() -> void:
 	# Check if in player range, and update accordingly
 	_update_in_range()
 
-## Overrides [method _took_step] in [Gamepiece].
-func _took_step() -> void:
+## Overrides [method took_step] in [Gamepiece].
+func took_step() -> void:
 	super()
 	_update_in_range()
 
@@ -42,6 +42,7 @@ func _update_in_range():
 	in_player_range = _is_in_player_range()
 	if in_player_range:
 		add_to_group("in_player_range")
+		player_entered_range()
 		if !player.is_connected("note_played", _on_player_note_played):
 			player.note_played.connect(_on_player_note_played)
 	else:
@@ -62,3 +63,6 @@ func _on_player_note_played(note: Globals.Notes):
 
 func _on_player_movement_ended():
 	_update_in_range()
+
+func player_entered_range():
+	pass

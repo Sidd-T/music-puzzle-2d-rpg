@@ -13,6 +13,22 @@ class_name Gamepiece extends Node2D
 ## Tile Size in pixels
 const TILE_SIZE: int = 16
 
+## Enum for the 4 cardinal directions
+enum Direction {
+	UP,
+	DOWN,
+	LEFT,
+	RIGHT
+}
+
+## Dictionary for mapping each [member Direction] to a [Vector2i]
+const DIR_VECTORS: Dictionary[Direction, Vector2] = {
+	Direction.UP: Vector2.UP,
+	Direction.DOWN: Vector2.DOWN,
+	Direction.LEFT: Vector2.LEFT,
+	Direction.RIGHT: Vector2.RIGHT
+}
+
 # Signals
 ## Emitted whenever a path is created and travel begins
 signal movement_started
@@ -35,13 +51,25 @@ signal movement_ended
 		sprite = value
 		update_configuration_warnings()
 
-@export var initial_tile: Vector2i:
+## The tile coordinate this gamepiece will spawn on or reset to
+@export var spawn_tile: Vector2i:
 	set(value):
-		initial_tile = value
+		spawn_tile = value
 		update_configuration_warnings()
-		
+
+## The initial direction the Gamepiece faces when spawning or reseting
+@export var spawn_dir: Direction:
+	set(value):
+		spawn_dir = value
+		update_configuration_warnings()
+
+## Return the [Vector2i] associated with the [member spawn_dir]
+func _get_spawn_dir_vector() -> Vector2i:
+	return DIR_VECTORS[spawn_dir]
+
 ## Speed to move the sprite between tiles
 @export var move_speed: float = 1
+@export var collidable: bool = true
 ## Whether this Gamepiece can be pushed
 @export var pushable: bool = false
 
@@ -57,14 +85,16 @@ var rectangle_shape := RectangleShape2D.new()
 ## so you cannot stop a [Gamepiece] from moving along a specific edge. To do that, you will have to
 ## refactor using [ASTAR2D] instead and manually create the grid
 var astar_grid := AStarGrid2D.new()
+## The gamepiece's current path
+var curr_path: Array[Vector2i]
 ## The gamepiece's current tile position
 var curr_tile: Vector2i
 ## The target position of the gamepiece's current travel, in pixels
 var target_position: Vector2
 ## The direction of travel
-var dir: Vector2
+var dir: Vector2 = _get_spawn_dir_vector()
 # boolean statuses
-var is_moving: bool
+var is_moving: bool = false
 var is_colliding: bool = false
 var is_pushing: bool = false
 var is_being_pushed: bool = false
@@ -77,27 +107,15 @@ func _ready() -> void:
 	if not Engine.is_editor_hint():
 		assert(gameboard, "Gamepiece '%s' must have a TileMapLayer reference to function!" % name)
 		assert(sprite, "Gamepiece '%s' must have a AnimatedSprite2D reference to function!" % name)
-		assert(initial_tile, "Gamepiece '%s' must have a Vector2i reference to function!" % name)
+		assert(spawn_tile, "Gamepiece '%s' must have a Vector2i reference to function!" % name)
+		assert(spawn_dir, "Gamepiece '%s' must have a Vector2i reference to function!" % name)
 	
 	# Every Gamepiece is added to a group
 	add_to_group("gamepieces")
-	
-	# Setup RayCast2D, we are pointing a ray to an adjacent tile, in this case, the one below
-	ray_cast.target_position = Vector2.DOWN * TILE_SIZE
-	ray_cast.collide_with_areas = true # Make sure it will collide with areas
-	ray_cast.enabled = true 
-	add_child(ray_cast)  # Make sure it's part of the scene
-	
-	# Setup Area2D and CollisionShape2D, these represent the hitbox for collisions
-	# First we add the area
-	add_child(area) 
-	# Then we create a square for the hitbox
-	rectangle_shape.size.x = TILE_SIZE
-	rectangle_shape.size.y = TILE_SIZE
-	# Then we add that square to the collision shape
-	collision_shape.shape = rectangle_shape
-	# Finally add collision shape as a child of area
-	area.add_child(collision_shape)
+	# Every Gamepiece has a raycast for detecting collisions
+	add_raycast()
+	# Every Gamepiece has a hitbox for colliding
+	add_hitbox()
 	
 	# Setup grid for pathfinding
 	astar_grid.region = gameboard.get_used_rect()
@@ -121,10 +139,54 @@ func _ready() -> void:
 			if tile_data == null or tile_data.get_custom_data("walkable") == false:
 				astar_grid.set_point_solid(tile_pos) # this sets the tile unwalkable
 	
-	## set the init position based on the gameboards rotation and initial tile
-	initial_tile = gameboard.rotate_tile(initial_tile)
-	curr_tile = initial_tile
+	# set the init position based on the gameboards rotation and initial tile
+	curr_tile = gameboard.to_orientated_tile(spawn_tile)
 	global_position = gameboard.map_to_local(curr_tile)
+	
+	# connect to the reset function of the [Gameboard]
+	gameboard.reset.connect(_on_gameboard_reset)
+
+## Setup RayCast2D, we are pointing a ray to an adjacent tile based on spawn direction
+func add_raycast():
+	ray_cast.target_position = gameboard.to_orientated_dir(_get_spawn_dir_vector()) * TILE_SIZE
+	ray_cast.collide_with_areas = true # Make sure it will collide with areas
+	ray_cast.enabled = true 
+	add_child(ray_cast)  # Make sure it's part of the scene
+
+## Setup hitbox of Gamepiece, the hitbox consists of an [Area2D] with a [RectangleShape2D] as the
+## Collision shape. Based on [member collidable], we set the collision layer
+func add_hitbox():
+	# Setup Area2D and CollisionShape2D, these represent the hitbox for collisions
+	# First we add the area and set the collision layer
+	area.collision_layer = 1 if collidable else 8 
+	add_child(area) 
+	# Then we create a square for the hitbox
+	rectangle_shape.size.x = TILE_SIZE
+	rectangle_shape.size.y = TILE_SIZE
+	# Then we add that square to the collision shape
+	collision_shape.shape = rectangle_shape
+	# Finally add collision shape as a child of area
+	area.add_child(collision_shape)
+	
+
+## Called when [Gameboard] emits [signal reset].
+## [br][br] This function will reset this Gamepiece to default values
+func _on_gameboard_reset() -> void:
+	
+	clear_path()
+	is_moving = false
+	is_colliding = false
+	is_pushing = false
+	is_being_pushed = false
+	
+	curr_tile = gameboard.to_orientated_tile(spawn_tile)
+	global_position = gameboard.map_to_local(curr_tile)
+	
+	dir = gameboard.to_orientated_dir(_get_spawn_dir_vector())
+	ray_cast.target_position = dir * TILE_SIZE
+	direction_updated()
+	
+	
 
 func _physics_process(_delta: float) -> void:
 	# The only thing we do in this is we update the sprite to move towards the next position
@@ -153,9 +215,14 @@ func _teleport_to_tile(target_tile: Vector2i) -> void:
 	is_moving = false
 	return
 
-## Travel the [param curr_path]. [br][br]
+## Travel the [member curr_path]. [br][br]
 ## This is the core function of [Gamepiece] which will travel along a path of 2d coords.
-func _travel_path(curr_path: Array[Vector2i]) -> void:	
+func _travel_path() -> void:	
+	
+	# overwrite collision and pushing from any previous movement attempt
+	is_colliding = false
+	is_pushing = false
+	
 	# if the gamepiece's current tile is in the path, we need to pop it
 	# This is needed for undo/redo logic where we send in a reverse path
 	while !curr_path.is_empty() and curr_path.front() == curr_tile:
@@ -166,17 +233,13 @@ func _travel_path(curr_path: Array[Vector2i]) -> void:
 		# In this case we don't call _end_movement b/c if we're here we didn't move
 		is_moving = false 
 		return
-		
-	# overwrite collision and pushing from any previous movement attempt
-	is_colliding = false
-	is_pushing = false
 	
 	# Get target position (in pixels)
 	target_position = gameboard.map_to_local(curr_path.front())
 		
 	# Get direction of travel	
 	dir = (target_position - global_position).normalized()	
-	_direction_updated()
+	direction_updated()
 	
 	# Set ray cast for collisions and see if we are colliding
 	ray_cast.target_position = dir * TILE_SIZE
@@ -190,12 +253,12 @@ func _travel_path(curr_path: Array[Vector2i]) -> void:
 		
 		# update path after sprite is finished moving
 		await _wait_for_sprite_arrived()
-		_took_step()
+		took_step()
 		curr_path.pop_front()
 		
 		# if still points in path, recursive call to travel again
 		if curr_path.is_empty() == false:
-			_travel_path(curr_path)
+			_travel_path()
 		else:
 			_end_movement()
 			return
@@ -206,13 +269,18 @@ func get_target_tile_from_dir(direction: Vector2) -> Vector2i:
 	var target_tile: Vector2i = Vector2i(curr_tile.x + direction.x as int, curr_tile.y + direction.y as int)
 	return target_tile
 
+func clear_path() -> void:
+	curr_path.clear()
+
 ## start movement of [Gamepiece]
 func _start_movement() -> void:
+	clear_path()
 	movement_started.emit()
 	is_moving = true
 	
 ## end movement of [Gamepiece]
 func _end_movement() -> void:
+	clear_path()
 	is_moving = false
 	movement_ended.emit()
 
@@ -230,9 +298,8 @@ func step(direction: Vector2) -> void:
 	# If the tile is walkable, now we can start movement,
 	# otherwise if we were already moving we'd be stuck
 	_start_movement()
-	var curr_path: Array[Vector2i]
 	curr_path.append(target_tile)
-	_travel_path(curr_path)
+	_travel_path()
 
 ## Move [Gamepiece] in direction given until blocked or travelled optional given distance
 ## [br][br][param direction] Should be a [Vector2]
@@ -245,7 +312,6 @@ func travel_straight_path(direction: Vector2, distance: int = -1) -> void:
 	#var curr_tile: Vector2i = gameboard.local_to_map(global_position)
 	var pos := curr_tile
 	var steps_taken := 0
-	var curr_path: Array[Vector2i]
 	
 	# This loop will generate the path
 	while true:
@@ -263,7 +329,7 @@ func travel_straight_path(direction: Vector2, distance: int = -1) -> void:
 
 		curr_path.append(pos)
 	
-	_travel_path(curr_path)
+	_travel_path()
 
 ## Get whether a target tile is valid to move to
 ## [br][br][param target_tile] Should be a [Vector2i]
@@ -306,21 +372,21 @@ func travel_astar_path(target_tile: Vector2i) -> void:
 		target_tile
 	)
 	
-	var curr_path: Array[Vector2i]
-	if path.is_empty() == false:
-		curr_path = path
-	else: 
+	# check if a path has been found
+	if path.is_empty() == true:
 		return
-	
-	print(curr_path)
+
 	_start_movement()
 	
+	# assign the path found to the curr path
+	curr_path = path
+	
 	# Now that we have the path, we can reset the occupied positions.
-	# Any collisions now are handled in _travel_curr_path() 
+	# Any collisions now are handled in _travel_path() 
 	for occupied_position: Vector2i in occupied_positions:
 		astar_grid.set_point_solid(occupied_position, false)
 	
-	_travel_path(curr_path)
+	_travel_path()
 
 ## Check if the [Gamepiece] is colliding using [member ray_cast][br][br]
 ## If the raycast is colliding we can call [method _handle_collision].
@@ -378,11 +444,11 @@ func can_be_pushed(direction: Vector2) -> bool:
 	return true
 
 ## Used for any child classes to do anything on each step taken
-func _took_step() -> void:
+func took_step() -> void:
 	is_being_pushed = false
 	curr_tile = gameboard.local_to_map(global_position)
 
 ## Used for any child classes to do anything on each direction update
-func _direction_updated() -> void:
+func direction_updated() -> void:
 	pass
 	

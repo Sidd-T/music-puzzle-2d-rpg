@@ -22,18 +22,10 @@ func _process(_delta: float) -> void:
 	animation_tree.set("parameters/Idle/blend_position", dir)
 	animation_tree.set("parameters/Walk/blend_position", dir)
 	
-	# This chases the player once player is in the song range of the monster
-	#if _is_in_player_range():
-			#travel_astar_path(player.curr_tile)
-	
 	if is_moving:
 		animation_state.travel("Walk")
-		return
-	
-	# This chases the player once player is in the song range of the monster
-	if _is_in_player_range():
-			travel_astar_path(player.curr_tile)
-	
+		return	
+
 	animation_state.travel("Idle")
 	
 
@@ -45,3 +37,19 @@ func _handle_collision() -> void:
 	 #but it could return something else that's not gampiece
 	if colliding_object is Player:
 		player.die()
+
+func _chase_player() -> void:
+	# This chases the player once player is in the song range of the monster
+	if in_player_range:
+			travel_astar_path(player.curr_tile)
+			
+## Overrides [method took_step] in [Monster].
+func took_step() -> void:
+	super()
+	#_chase_player()
+
+## Overrides [method player_entered_range] in [Monster].
+## Begin chasing player when it enters range
+func player_entered_range():
+	super()
+	#_chase_player()

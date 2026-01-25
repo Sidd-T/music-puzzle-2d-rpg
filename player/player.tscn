@@ -898,6 +898,7 @@ transitions = ["Start", "Idle", SubResource("AnimationNodeStateMachineTransition
 [node name="Player" type="Node2D" node_paths=PackedStringArray("sprite") groups=["gamepieces"]]
 script = ExtResource("1_btcbx")
 sprite = NodePath("AnimatedSprite2D")
+spawn_dir = 1
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 sprite_frames = SubResource("SpriteFrames_kdg72")

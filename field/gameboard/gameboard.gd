@@ -2,6 +2,9 @@ class_name Gameboard extends TileMapLayer
 
 enum Orientations {NORTH, EAST, SOUTH, WEST}
 
+## Signal emitted when player wants to reset the board
+signal reset
+
 # Export Variables
 @export var orientation: Orientations:
 	set(value):
@@ -17,7 +20,8 @@ func _ready():
 func rotate_board(steps: int) -> void:
 	orientation = ((orientation + steps) % 4) as Orientations
 
-func rotate_tile(tile: Vector2i) -> Vector2i:
+## Function to rotate all tiles around the grid center depending on the gameboard orientation
+func to_orientated_tile(tile: Vector2i) -> Vector2i:
 	var rel := tile - grid_center
 
 	match orientation:
@@ -38,7 +42,7 @@ func rotate_tile(tile: Vector2i) -> Vector2i:
 			
 	return tile
 
-func rotate_dir(dir: Vector2i) -> Vector2i:
+func to_orientated_dir(dir: Vector2i) -> Vector2i:
 	match orientation:
 		Orientations.NORTH: return dir
 		Orientations.EAST:  return Vector2i(-dir.y, dir.x)
@@ -46,3 +50,9 @@ func rotate_dir(dir: Vector2i) -> Vector2i:
 		Orientations.WEST:  return Vector2i(dir.y, -dir.x)
 	
 	return dir
+
+## Function for reset functionality
+func _unhandled_input(event: InputEvent) -> void:	
+	
+	if event.is_action_pressed("reset"):
+		reset.emit()
